@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>최단 강하 곡선 실험실</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: lab bench — graph-paper stage on the left, instrument panel on the right; stacks on phones */
+:root {
+  --bg: #EEF1EF; --surface: #FFFFFF; --ink: #172033; --muted: #56606F; --line: #D5DCD8;
+  --grid: #E3E9E6; --gridStrong: #C9D2CE;
+  --c-line: #23509E; --c-arc: #0E7C6B; --c-para: #7A3E8E; --c-cyc: #C8501C; --c-mine: #8A6100;
+  --c-opt: #23509E; --c-arrow: #7A3E8E; --accent: #C8501C; --accent-ink: #FFFFFF;
+  --f-display: "Gowun Batang", "Nanum Myeongjo", serif;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11161C; --surface: #19202A; --ink: #E7ECF2; --muted: #9AA5B4; --line: #2B3441;
+  --grid: #1F2731; --gridStrong: #2E3945;
+  --c-line: #7EA6EE; --c-arc: #3FC2A7; --c-para: #C995DC; --c-cyc: #F2804E; --c-mine: #E3BA4F;
+  --c-opt: #7EA6EE; --c-arrow: #C995DC; --accent: #F2804E; --accent-ink: #1A1206; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11161C; --surface: #19202A; --ink: #E7ECF2; --muted: #9AA5B4; --line: #2B3441;
+  --grid: #1F2731; --gridStrong: #2E3945;
+  --c-line: #7EA6EE; --c-arc: #3FC2A7; --c-para: #C995DC; --c-cyc: #F2804E; --c-mine: #E3BA4F;
+  --c-opt: #7EA6EE; --c-arrow: #C995DC; --accent: #F2804E; --accent-ink: #1A1206; color-scheme: dark }
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+#mkTh { font-size: 16px }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6 }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; display: flex; flex-direction: column; gap: 18px }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .12em; color: var(--accent); text-transform: uppercase }
+h1 { margin: 2px 0 0; font-family: var(--f-display); font-size: clamp(30px, 5vw, 44px); line-height: 1.15; text-wrap: balance }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 62ch }
+.setup { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; padding: 12px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px }
+.setup strong { font-size: 14px }
+.slider { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted) }
+.slider input { width: 150px; accent-color: var(--accent) }
+.slider output { font-family: var(--f-mono); color: var(--ink); min-width: 56px; font-variant-numeric: tabular-nums }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--line) }
+.tab { font: 600 15px var(--f-body); color: var(--muted); background: none; border: 0; padding: 10px 16px; border-bottom: 3px solid transparent; cursor: pointer; margin-bottom: -1px }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent) }
+.tab:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, label.chip:focus-within { outline: 2px solid var(--accent); outline-offset: 2px }
+.panel { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 18px; align-items: start }
+@media (max-width: 860px) { .panel { grid-template-columns: minmax(0, 1fr) } }
+.panel.wide { grid-template-columns: minmax(0, 1fr) }
+aside.cards3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start }
+@media (max-width: 1000px) { aside.cards3 { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+@media (max-width: 640px) { aside.cards3 { grid-template-columns: minmax(0, 1fr) } }
+.tabbody { display: flex; flex-direction: column; gap: 18px }
+.rank-area { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 18px; align-items: start }
+.chwrap { min-width: 0 }
+#chCv { width: 100%; display: block; touch-action: none; border-radius: 8px }
+@media (max-width: 860px) { .rank-area { grid-template-columns: minmax(0, 1fr) } }
+.rank-area .box { padding: 20px; min-width: 0 }
+.rank-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap }
+.rank-title h2 { font-family: var(--f-display); font-size: 24px }
+.result { padding: 14px 16px; border-radius: 12px; background: var(--bg); font-size: 15px; line-height: 1.55; color: var(--muted) }
+.result b.big { display: block; font-family: var(--f-mono); font-size: 30px; color: var(--ink); font-variant-numeric: tabular-nums }
+.result.ready { outline: 2px solid var(--c-mine) }
+.nickrow { display: flex; gap: 8px; flex-wrap: wrap }
+.nickrow input { flex: 1 1 160px; min-width: 0; font: 16px var(--f-body); padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink) }
+.nickrow input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+button.btn:disabled { opacity: .45; cursor: not-allowed }
+button.mini { font: 600 12.5px var(--f-body); padding: 4px 9px; border-radius: 7px; border: 1.5px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer }
+button.mini:hover { color: var(--ink); border-color: var(--muted) }
+button.mini.del { padding: 4px 8px }
+.tablewrap { overflow-x: auto }
+.medal { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; font-family: var(--f-mono); font-size: 13px; font-weight: 700; color: var(--muted); border: 1.5px solid var(--line) }
+.medal.m1 { background: var(--c-mine); border-color: var(--c-mine); color: var(--surface) }
+.medal.m2 { background: var(--muted); border-color: var(--muted); color: var(--surface) }
+.medal.m3 { background: var(--c-cyc); border-color: var(--c-cyc); color: var(--surface) }
+tr.wall td { color: var(--c-cyc); font-weight: 600; background: var(--bg) }
+tr.mine td { background: color-mix(in srgb, var(--c-mine) 14%, transparent) }
+td.nick { max-width: 12em; overflow-wrap: anywhere }
+.acts { display: flex; gap: 4px; justify-content: flex-end }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0 }
+.stage canvas { width: 100%; display: block; touch-action: none; border-radius: 8px }
+.hint { margin: 0; font-size: 13.5px; color: var(--muted) }
+aside { display: flex; flex-direction: column; gap: 14px; min-width: 0 }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px }
+.box h2 { margin: 0; font-size: 15px; font-weight: 700 }
+.chips { display: flex; flex-wrap: wrap; gap: 8px }
+label.chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border: 1.5px solid var(--line); border-radius: 999px; font-size: 14px; cursor: pointer; user-select: none }
+label.chip input { position: absolute; opacity: 0; pointer-events: none }
+label.chip .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--dot); opacity: .35 }
+label.chip:has(input:checked) { border-color: var(--dot); font-weight: 600 }
+label.chip:has(input:checked) .dot { opacity: 1 }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+button.btn { font: 600 15px var(--f-body); padding: 10px 18px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer }
+button.btn:hover { border-color: var(--muted) }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
+button.primary:hover { filter: brightness(1.06); border-color: var(--accent) }
+select { font: 14px var(--f-body); padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink) }
+.field { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; color: var(--muted) }
+table { width: 100%; border-collapse: collapse; font-size: 14px }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12.5px; padding: 0 4px 6px; border-bottom: 1px solid var(--line) }
+td { padding: 8px 4px; border-bottom: 1px solid var(--line) }
+td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums }
+tr.win td { font-weight: 700 }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; vertical-align: 1px }
+.rank { display: inline-block; min-width: 22px; font-family: var(--f-mono); color: var(--muted) }
+tr.win .rank { color: var(--accent) }
+.note { font-size: 13px; color: var(--muted); margin: 0 }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
+.stat { padding: 10px 12px; background: var(--bg); border-radius: 10px }
+.stat .k { font-size: 12.5px; color: var(--muted) }
+.stat .v { font-family: var(--f-mono); font-size: 19px; font-variant-numeric: tabular-nums }
+.status { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; border: 1.5px solid currentColor }
+ol.steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px }
+ol.steps b { color: var(--ink) }
+ol.steps li { color: var(--muted) }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted) }
+.legend span::before { content: ""; display: inline-block; width: 18px; height: 0; border-top: 3px solid var(--k); margin-right: 6px; vertical-align: 4px }
+.legend .dash::before { border-top-style: dashed }
+.formula { font-family: var(--f-mono); font-size: 13px; background: var(--bg); padding: 10px 12px; border-radius: 8px; overflow-x: auto }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Cycloid · Brachistochrone · Tautochrone</div>
+      <h1>최단 강하 곡선 실험실</h1>
+      <p class="lede">바퀴가 굴러가며 사이클로이드를 그리는 모습부터 시작해 보세요. 그다음, A에서 B까지 구슬이 가장 빨리 내려가는 길은 어떤 모양일까요? 여러 곡선으로 경주를 해 보고, 변분법으로 곡선을 조금씩 고쳐 가며 정답을 스스로 찾아보세요. 어디서 놓아도 동시에 도착하는 등시곡선도 직접 확인할 수 있어요.</p>
+    </div>
+  </header>
+
+  <section class="setup" aria-label="도착점 설정">
+    <strong>도착점 B의 위치</strong>
+    <label class="slider" for="sx">가로 거리 <input id="sx" type="range" min="0.5" max="3.2" step="0.01" value="1.57"><output id="ox" for="sx">1.57 m</output></label>
+    <label class="slider" for="sy">낙차(높이) <input id="sy" type="range" min="0.3" max="1.5" step="0.01" value="1.00"><output id="oy" for="sy">1.00 m</output></label>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-make" aria-controls="p-make" aria-selected="true">① 사이클로이드 만들기</button>
+    <button class="tab" role="tab" id="t-race" aria-controls="p-race" aria-selected="false">② 곡선 경주</button>
+    <button class="tab" role="tab" id="t-opt" aria-controls="p-opt" aria-selected="false">③ 변분법으로 찾기</button>
+    <button class="tab" role="tab" id="t-iso" aria-controls="p-iso" aria-selected="false">④ 등시곡선</button>
+  </nav>
+
+  <section class="panel wide" id="p-make" role="tabpanel" aria-labelledby="t-make">
+    <div class="stage">
+      <canvas id="makeCv" aria-label="직선 위를 구르는 바퀴와 바퀴 위의 점 P가 그리는 자취"></canvas>
+      <div class="legend">
+        <span style="--k: var(--c-line)">바퀴</span>
+        <span style="--k: var(--c-cyc)">점 P의 자취</span>
+        <span style="--k: var(--c-arc)">굴러간 거리 = 땅에 닿은 호의 길이</span>
+        <span class="dash" style="--k: var(--muted)">바퀴 중심이 지나는 길</span>
+      </div>
+      <p class="hint">바퀴를 손가락이나 마우스로 잡고 좌우로 끌면 직접 굴릴 수 있어요. 바퀴는 미끄러지지 않고 구르기 때문에, 땅 위의 초록 선과 바퀴 위의 초록 호는 길이가 항상 같아요.</p>
+    </div>
+    <aside class="cards3">
+      <div class="box">
+        <h2>바퀴 굴리기</h2>
+        <div class="row">
+          <button class="btn primary" id="roll">굴리기</button>
+          <button class="btn" id="mkStep">30°만 굴리기</button>
+          <button class="btn" id="mkReset">처음부터</button>
+        </div>
+        <label class="slider" for="mkR">바퀴 반지름 <input id="mkR" type="range" min="0.12" max="0.33" step="0.01" value="0.30"><output id="mkRo" for="mkR">30 cm</output></label>
+        <label class="field" for="mkK">점 P의 위치
+          <select id="mkK"><option value="1" selected>바퀴 테두리 위</option><option value="0.5">바퀴 안쪽 (반지름의 절반)</option><option value="1.5">바퀴 바깥 (기차 바퀴처럼)</option></select>
+        </label>
+        <label class="field" for="mkSpeed">굴리는 속도
+          <select id="mkSpeed"><option value="0.8">천천히</option><option value="1.6" selected>보통</option><option value="3.2">빠르게</option></select>
+        </label>
+        <label class="field" for="mkGhost">바퀴 잔상 남기기 <input type="checkbox" id="mkGhost" checked></label>
+      </div>
+      <div class="box">
+        <h2>지금 바퀴는</h2>
+        <div class="stats">
+          <div class="stat"><div class="k">굴러간 각 θ</div><div class="v" id="mkTh">–</div></div>
+          <div class="stat"><div class="k">굴러간 거리 rθ</div><div class="v" id="mkDist">–</div></div>
+          <div class="stat"><div class="k">회전 수</div><div class="v" id="mkTurns">–</div></div>
+          <div class="stat"><div class="k">완성된 아치</div><div class="v" id="mkArches">–</div></div>
+        </div>
+        <div class="formula" id="mkFormula" aria-live="polite"></div>
+        <p class="note" id="mkKind"></p>
+      </div>
+      <div class="box">
+        <h2>한 바퀴 구르면 생기는 아치</h2>
+        <div class="stats">
+          <div class="stat"><div class="k">아치의 폭 (= 둘레 2πr)</div><div class="v" id="mkW">–</div></div>
+          <div class="stat"><div class="k" id="mkHk">가장 높은 곳 (= 지름 2r)</div><div class="v" id="mkH">–</div></div>
+        </div>
+        <p class="note">바퀴가 한 바퀴 구르면 바퀴 둘레만큼 앞으로 가고, 점 P는 아치 하나를 그려요. 반지름을 줄이면 같은 길이에 더 많은 아치가 생겨요.</p>
+      </div>
+    </aside>
+  </section>
+
+  <section class="tabbody" id="p-race" role="tabpanel" aria-labelledby="t-race" hidden>
+   <div class="panel">
+    <div class="stage">
+      <canvas id="raceCv" aria-label="A에서 B까지의 여러 레일과 구슬"></canvas>
+      <p class="hint">여러 레일을 비교해 보는 곳이에요. 노란 <b>내 곡선</b>의 손잡이를 끌어 모양을 바꿔 볼 수 있어요. 랭킹 기록은 아래 <b>기록 도전</b>에서 남겨요.</p>
+    </div>
+    <aside>
+      <div class="box">
+        <h2>경주할 레일</h2>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="box">
+        <div class="row">
+          <button class="btn primary" id="go">출발!</button>
+          <label class="field" for="speed">재생 속도
+            <select id="speed"><option value="1">실제 속도</option><option value="0.5">1/2배</option><option value="0.25" selected>1/4배</option><option value="0.1">1/10배</option></select>
+          </label>
+        </div>
+        <table aria-label="경주 결과">
+          <thead><tr><th>레일</th><th class="num">길이</th><th class="num">도착 시간</th></tr></thead>
+          <tbody id="board"></tbody>
+        </table>
+        <p class="note">길이가 가장 짧은 직선이 가장 빠를까요? 도착 시간을 비교해 보세요. 마찰과 공기 저항은 무시합니다.</p>
+      </div>
+    </aside>
+   </div>
+   <div class="rank-area" id="rankArea">
+    <div class="box">
+      <div class="rank-title"><h2>기록 도전</h2><span class="note">도전 코스 · 가로 1.57 m, 낙차 1.00 m</span></div>
+      <p class="note">여기에는 다른 레일이 보이지 않아요. 노란 손잡이 세 개를 끌어서 A에서 B까지 가장 빨리 내려가는 나만의 곡선을 만들어 보세요.</p>
+      <div class="chwrap"><canvas id="chCv" aria-label="기록 도전용 내 곡선. 손잡이를 끌어 모양을 바꿉니다"></canvas></div>
+      <div class="row">
+        <button class="btn primary" id="chGo">출발!</button>
+        <button class="btn" id="chReset">처음 모양으로</button>
+        <label class="field" for="chSpeed">재생 속도
+          <select id="chSpeed"><option value="1">실제 속도</option><option value="0.5">1/2배</option><option value="0.25" selected>1/4배</option></select>
+        </label>
+      </div>
+      <div class="result" id="myResult" aria-live="polite">곡선을 만들고 <b>출발!</b>을 눌러 기록을 재 보세요.</div>
+      <label class="field" for="nick" style="justify-content: flex-start">닉네임 (최대 10자)</label>
+      <div class="nickrow">
+        <input id="nick" maxlength="10" autocomplete="off" placeholder="예: 수학왕">
+        <button class="btn primary" id="submitRec" disabled>기록 남기기</button>
+      </div>
+      <p class="note" id="regMsg" aria-live="polite"></p>
+    </div>
+    <div class="box">
+      <div class="rank-title"><h2>명예의 전당</h2><span class="status" id="rankSrc" style="color: var(--muted)">불러오는 중</span></div>
+      <p class="note">아무도 이길 수 없는 사이클로이드의 기록에 가장 가까이 다가간 사람이 1등이에요.</p>
+      <div class="tablewrap">
+        <table aria-label="랭킹">
+          <thead><tr><th>순위</th><th>닉네임</th><th class="num">기록</th><th class="num">차이</th><th></th></tr></thead>
+          <tbody id="rankBody"></tbody>
+        </table>
+      </div>
+      <p class="note" id="rankFoot"></p>
+      <div class="row" id="adminBar" hidden><button class="btn" id="clearAll">랭킹 모두 지우기</button><span class="note">관리자에게만 보이는 버튼이에요.</span></div>
+    </div>
+   </div>
+  </section>
+
+  <section class="panel" id="p-opt" role="tabpanel" aria-labelledby="t-opt" hidden>
+    <div class="stage">
+      <canvas id="optCv" aria-label="변분법으로 점점 바뀌는 곡선"></canvas>
+      <div class="legend">
+        <span style="--k: var(--c-opt)">지금 곡선</span>
+        <span style="--k: var(--c-arrow)">점을 옮길 방향 (δy)</span>
+        <span class="dash" style="--k: var(--c-cyc)" id="lgCyc">정답: 사이클로이드</span>
+      </div>
+      <canvas id="chartCv" aria-label="반복 횟수에 따른 도착 시간 그래프"></canvas>
+    </div>
+    <aside>
+      <div class="box">
+        <h2>실험 설정</h2>
+        <label class="field" for="init">처음 곡선
+          <select id="init"><option value="line">직선</option><option value="wave">구불구불한 곡선</option><option value="slow">처음이 완만한 곡선</option></select>
+        </label>
+        <label class="field" for="nseg">곡선을 나누는 점
+          <select id="nseg"><option value="10">10개 구간</option><option value="20">20개 구간</option><option value="30" selected>30개 구간</option><option value="50">50개 구간</option></select>
+        </label>
+        <label class="field" for="showCyc">정답 곡선 보이기 <input type="checkbox" id="showCyc" checked></label>
+        <div class="row">
+          <button class="btn primary" id="run">시작</button>
+          <button class="btn" id="step">한 단계</button>
+          <button class="btn" id="reset">처음부터</button>
+        </div>
+      </div>
+      <div class="box">
+        <div class="row" style="justify-content: space-between"><h2>측정값</h2><span class="status" id="status" style="color: var(--muted)">대기 중</span></div>
+        <div class="stats">
+          <div class="stat"><div class="k">반복 횟수</div><div class="v" id="sIt">0</div></div>
+          <div class="stat"><div class="k">지금 도착 시간</div><div class="v" id="sT">–</div></div>
+          <div class="stat"><div class="k">사이클로이드 (이론값)</div><div class="v" id="sC">–</div></div>
+          <div class="stat"><div class="k">정답과의 차이</div><div class="v" id="sG">–</div></div>
+        </div>
+      </div>
+      <div class="box">
+        <h2>변분법은 이렇게 답을 찾아요</h2>
+        <ol class="steps">
+          <li><b>곡선을 쪼갠다.</b> 곡선을 짧은 선분들로 나누고, 각 점의 높이 y를 조절할 수 있게 합니다.</li>
+          <li><b>살짝 흔들어 본다 (변분 δy).</b> 점 하나를 아주 조금 올리거나 내려 보고 도착 시간이 어떻게 변하는지 잽니다.</li>
+          <li><b>시간이 줄어드는 쪽으로 옮긴다.</b> 보라색 화살표 방향으로 모든 점을 동시에 조금씩 움직입니다.</li>
+          <li><b>더 줄어들지 않을 때까지 반복.</b> 어떤 곡선에서 시작해도 사이클로이드에 도착합니다.</li>
+        </ol>
+        <div class="formula">T = ∫ ds / v,  v = √(2gy)<br>오일러–라그랑주 방정식의 해 → x = r(θ − sin θ), y = r(1 − cos θ)</div>
+        <p class="note">화면의 계산은 곡선을 선분으로 나눈 근사값이라, 점이 많을수록 이론값에 더 가까워집니다. 강화학습 AI도 같은 방식으로 “조금 바꾸고, 더 빨라지면 그쪽으로” 학습합니다.</p>
+      </div>
+    </aside>
+  </section>
+
+  <section class="panel" id="p-iso" role="tabpanel" aria-labelledby="t-iso" hidden>
+    <div class="stage">
+      <canvas id="isoCv" aria-label="그릇 안 서로 다른 높이의 구슬 세 개"></canvas>
+      <p class="hint">세 구슬의 출발 높이를 바꾸고 <b>놓기!</b>를 눌러 보세요. 사이클로이드 그릇과 원형 그릇의 결과를 비교해 보세요.</p>
+    </div>
+    <aside>
+      <div class="box">
+        <h2>그릇과 구슬</h2>
+        <label class="field" for="bowl">그릇 모양
+          <select id="bowl"><option value="cyc">사이클로이드 그릇</option><option value="circ">원형 그릇</option></select>
+        </label>
+        <label class="slider" for="h1"><span class="sw" style="background: var(--c-line)"></span>구슬 1 <input id="h1" type="range" min="5" max="98" value="92"><output id="oh1">92%</output></label>
+        <label class="slider" for="h2"><span class="sw" style="background: var(--c-arc)"></span>구슬 2 <input id="h2" type="range" min="5" max="98" value="55"><output id="oh2">55%</output></label>
+        <label class="slider" for="h3"><span class="sw" style="background: var(--c-para)"></span>구슬 3 <input id="h3" type="range" min="5" max="98" value="18"><output id="oh3">18%</output></label>
+        <div class="row">
+          <button class="btn primary" id="drop">놓기!</button>
+          <label class="field" for="isoSpeed">재생 속도
+            <select id="isoSpeed"><option value="1">실제 속도</option><option value="0.5">1/2배</option><option value="0.25" selected>1/4배</option><option value="0.1">1/10배</option></select>
+          </label>
+        </div>
+      </div>
+      <div class="box">
+        <h2>바닥까지 걸린 시간</h2>
+        <table aria-label="등시성 결과">
+          <thead><tr><th>구슬</th><th class="num">출발 높이</th><th class="num">도착 시간</th></tr></thead>
+          <tbody id="isoBoard"></tbody>
+        </table>
+        <div class="stat"><div class="k">가장 빠른 구슬과 가장 느린 구슬의 차이</div><div class="v" id="isoGap">–</div></div>
+        <p class="note">두 그릇은 바닥 부분의 휘어진 정도가 같습니다(원의 반지름 = 4r). 그래서 낮은 곳에서는 비슷하지만, 높이 올라갈수록 원형 그릇은 차이가 벌어집니다. 사이클로이드 그릇의 이론값은 T = π√(r/g)입니다.</p>
+      </div>
+    </aside>
+  </section>
+</div>
+
+<script>
+(() => {
+const G = 9.8;
+const $ = id => document.getElementById(id);
+const st = { X: 1.57, Y: 1.0 };
+let css = {};
+function readCss() {
+  const s = getComputedStyle(document.documentElement);
+  ['bg','surface','ink','muted','line','grid','gridStrong','c-line','c-arc','c-para','c-cyc','c-mine','c-opt','c-arrow','accent'].forEach(k => css[k] = s.getPropertyValue('--' + k).trim());
+}
+const fmtT = t => isFinite(t) ? t.toFixed(3) + ' s' : '도착 못 함';
+
+/* ---------- physics ---------- */
+function cycFit(X, Y) {
+  let lo = 1e-6, hi = 2 * Math.PI - 1e-6; const k = X / Y;
+  for (let i = 0; i < 200; i++) { const m = (lo + hi) / 2; ((m - Math.sin(m)) / (1 - Math.cos(m)) < k) ? lo = m : hi = m; }
+  const th = (lo + hi) / 2, r = Y / (1 - Math.cos(th));
+  return { th, r, T: th * Math.sqrt(r / G), maxY: th > Math.PI ? 2 * r : Y };
+}
+function cycPts(X, Y, n = 300) {
+  const c = cycFit(X, Y), p = [];
+  for (let i = 0; i <= n; i++) { const t = c.th * i / n; p.push([c.r * (t - Math.sin(t)), c.r * (1 - Math.cos(t))]); }
+  p[n] = [X, Y]; return p;
+}
+function timeline(p) {
+  const cum = [0], seg = []; let t = 0;
+  for (let i = 0; i < p.length - 1; i++) {
+    const [x1, y1] = p[i], [x2, y2] = p[i + 1];
+    const L = Math.hypot(x2 - x1, y2 - y1);
+    if (L < 1e-12) { seg.push({ L: 0, v1: 0, a: 0 }); cum.push(t); continue; }
+    if (y2 <= 1e-9 || (i > 0 && y1 <= 1e-9)) return { p, cum, seg, T: Infinity };
+    const v1 = Math.sqrt(2 * G * Math.max(y1, 0)), v2 = Math.sqrt(2 * G * y2);
+    seg.push({ L, v1, a: (v2 * v2 - v1 * v1) / (2 * L) });
+    t += 2 * L / (v1 + v2); cum.push(t);
+  }
+  return { p, cum, seg, T: t };
+}
+function pathTime(p) {
+  let t = 0;
+  for (let i = 0; i < p.length - 1; i++) {
+    const [x1, y1] = p[i], [x2, y2] = p[i + 1];
+    const L = Math.hypot(x2 - x1, y2 - y1);
+    if (L < 1e-12) continue;
+    if (y2 <= 1e-9 || (i > 0 && y1 <= 1e-9)) return Infinity;
+    t += 2 * L / (Math.sqrt(2 * G * Math.max(y1, 0)) + Math.sqrt(2 * G * y2));
+  }
+  return t;
+}
+function posAt(tl, t) {
+  const last = tl.cum.length - 1;
+  if (t >= tl.cum[last]) return tl.p[last];
+  let lo = 0, hi = last;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; tl.cum[m] <= t ? lo = m : hi = m; }
+  const s = tl.seg[lo]; if (!s || s.L === 0) return tl.p[lo];
+  const tau = t - tl.cum[lo];
+  const f = Math.min(1, Math.max(0, (s.v1 * tau + 0.5 * s.a * tau * tau) / s.L));
+  const a = tl.p[lo], b = tl.p[lo + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+}
+const pathLen = p => p.reduce((s, q, i) => i ? s + Math.hypot(q[0] - p[i - 1][0], q[1] - p[i - 1][1]) : 0, 0);
+
+/* ---------- view ---------- */
+function fitCanvas(cv, ratio, minH, maxH) {
+  const w = cv.parentElement.clientWidth - 24;
+  const h = Math.max(minH, Math.min(maxH, w * ratio));
+  const d = window.devicePixelRatio || 1;
+  cv.style.height = h + 'px'; cv.width = Math.round(w * d); cv.height = Math.round(h * d);
+  const ctx = cv.getContext('2d'); ctx.setTransform(d, 0, 0, d, 0, 0);
+  return { ctx, w, h };
+}
+function makeView(w, h, xmin, xmax, ymin, ymax) {
+  const pad = 28, s = Math.min((w - 2 * pad) / (xmax - xmin), (h - 2 * pad) / (ymax - ymin));
+  const ox = pad + ((w - 2 * pad) - s * (xmax - xmin)) / 2 - s * xmin;
+  const oy = pad + ((h - 2 * pad) - s * (ymax - ymin)) / 2 - s * ymin;
+  return { s, w, h, X: x => ox + s * x, Y: y => oy + s * y, inv: (px, py) => [(px - ox) / s, (py - oy) / s] };
+}
+function sceneBounds() {
+  const c = cycFit(st.X, st.Y);
+  return [-0.08 * st.X, st.X * 1.12, -0.12 * st.Y, Math.max(st.Y * 1.32, c.maxY * 1.08)];
+}
+function drawGrid(ctx, v) {
+  ctx.fillStyle = css.surface; ctx.fillRect(0, 0, v.w, v.h);
+  const steps = [0.05, 0.1, 0.25, 0.5, 1]; const step = steps.find(s => s * v.s >= 38) || 1;
+  const [x0] = v.inv(0, 0), [x1] = v.inv(v.w, 0), [, y0] = v.inv(0, 0), [, y1] = v.inv(0, v.h);
+  ctx.lineWidth = 1;
+  for (let x = Math.ceil(x0 / step) * step; x <= x1; x += step) {
+    const major = Math.abs(x / (step * 2) - Math.round(x / (step * 2))) < 1e-6;
+    ctx.strokeStyle = major ? css.gridStrong : css.grid; ctx.beginPath(); ctx.moveTo(v.X(x), 0); ctx.lineTo(v.X(x), v.h); ctx.stroke();
+  }
+  for (let y = Math.ceil(y0 / step) * step; y <= y1; y += step) {
+    const major = Math.abs(y / (step * 2) - Math.round(y / (step * 2))) < 1e-6;
+    ctx.strokeStyle = major ? css.gridStrong : css.grid; ctx.beginPath(); ctx.moveTo(0, v.Y(y)); ctx.lineTo(v.w, v.Y(y)); ctx.stroke();
+  }
+  ctx.fillStyle = css.muted; ctx.font = '11px "IBM Plex Mono", monospace'; ctx.textAlign = 'left';
+  ctx.fillText('격자 한 칸 = ' + (step * 100).toFixed(0) + ' cm', 10, v.h - 10);
+}
+function strokePath(ctx, v, p, color, width, dash, alpha = 1) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.setLineDash(dash || []); ctx.beginPath();
+  p.forEach((q, i) => i ? ctx.lineTo(v.X(q[0]), v.Y(q[1])) : ctx.moveTo(v.X(q[0]), v.Y(q[1])));
+  ctx.stroke(); ctx.restore();
+}
+function drawEnds(ctx, v) {
+  ctx.fillStyle = css.ink; ctx.font = '600 14px "IBM Plex Sans KR", sans-serif';
+  [[0, 0, 'A 출발', -10, -14, 'left'], [st.X, st.Y, 'B 도착', 12, 22, 'left']].forEach(([x, y, t, dx, dy, al]) => {
+    ctx.beginPath(); ctx.arc(v.X(x), v.Y(y), 5, 0, 7); ctx.fill();
+    ctx.textAlign = al; ctx.fillText(t, v.X(x) + dx, v.Y(y) + dy);
+  });
+}
+function ball(ctx, v, q, color, r = 9) {
+  ctx.beginPath(); ctx.arc(v.X(q[0]), v.Y(q[1]) - r, r, 0, 7); ctx.fillStyle = color; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = css.surface; ctx.stroke();
+}
+
+/* ---------- race ---------- */
+const RACE = [
+  { id: 'line', name: '직선', col: 'c-line', on: true },
+  { id: 'arc', name: '원호', col: 'c-arc', on: true },
+  { id: 'para', name: '포물선', col: 'c-para', on: false },
+  { id: 'cyc', name: '사이클로이드', col: 'c-cyc', on: true },
+  { id: 'mine', name: '내 곡선', col: 'c-mine', on: true },
+];
+let mine = [[0.3, 0.95], [0.68, 1.12]]; // fractions of X, Y
+function spline(ctrl, per = 60) {
+  const P = [[2 * ctrl[0][0] - ctrl[1][0], 2 * ctrl[0][1] - ctrl[1][1]], ...ctrl];
+  const n = ctrl.length; P.push([2 * ctrl[n - 1][0] - ctrl[n - 2][0], 2 * ctrl[n - 1][1] - ctrl[n - 2][1]]);
+  const out = [];
+  for (let i = 1; i < P.length - 2; i++) for (let j = 0; j < per; j++) {
+    const t = j / per, t2 = t * t, t3 = t2 * t;
+    out.push([0, 1].map(k => 0.5 * ((2 * P[i][k]) + (-P[i - 1][k] + P[i + 1][k]) * t + (2 * P[i - 1][k] - 5 * P[i][k] + 4 * P[i + 1][k] - P[i + 2][k]) * t2 + (-P[i - 1][k] + 3 * P[i][k] - 3 * P[i + 1][k] + P[i + 2][k]) * t3)));
+  }
+  out.push(ctrl[n - 1].slice()); out[0] = [0, 0]; return out;
+}
+function mineCtrl() { return [[0, 0], ...mine.map(([fx, fy]) => [fx * st.X, fy * st.Y]), [st.X, st.Y]]; }
+function racePts(id) {
+  const { X, Y } = st, n = 240, p = [];
+  if (id === 'line') return [[0, 0], [X, Y]];
+  if (id === 'cyc') return cycPts(X, Y);
+  if (id === 'mine') return spline(mineCtrl());
+  if (id === 'arc') { const R = (X * X + Y * Y) / (2 * X); for (let i = 0; i <= n; i++) { const x = X * (i / n) ** 2; p.push([x, Math.sqrt(Math.max(0, R * R - (x - R) ** 2))]); } p[n] = [X, Y]; return p; }
+  if (id === 'para') { for (let i = 0; i <= n; i++) { const u = i / n; p.push([X * u * u, Y * u]); } return p; }
+}
+const race = { tls: {}, running: false, t0: 0, t: 0, done: {} };
+function buildRace() { RACE.forEach(c => race.tls[c.id] = timeline(racePts(c.id))); }
+function resetRace() { race.running = false; race.t = 0; race.done = {}; buildRace(); $('go').textContent = '출발!'; drawRace(); renderBoard(); if (window.rankInvalidate) rankInvalidate(); }
+let raceView;
+function drawRace() {
+  const cv = $('raceCv'); const { ctx, w, h } = fitCanvas(cv, 0.6, 300, 560);
+  const [a, b, c, d] = sceneBounds(); raceView = makeView(w, h, a, b, c, d); const v = raceView;
+  drawGrid(ctx, v);
+  RACE.filter(r => r.on).forEach(r => strokePath(ctx, v, race.tls[r.id].p, css[r.col], r.id === 'cyc' ? 4.5 : 3.5));
+  const m = RACE.find(r => r.id === 'mine');
+  if (m.on) mineCtrl().slice(1, -1).forEach(q => {
+    ctx.beginPath(); ctx.arc(v.X(q[0]), v.Y(q[1]), 10, 0, 7); ctx.fillStyle = css.surface; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = css['c-mine']; ctx.stroke();
+  });
+  drawEnds(ctx, v);
+  RACE.filter(r => r.on).forEach(r => ball(ctx, v, posAt(race.tls[r.id], race.t), css[r.col]));
+}
+function renderBoard() {
+  const rows = RACE.filter(r => r.on).map(r => ({ r, len: pathLen(race.tls[r.id].p), T: race.tls[r.id].T, fin: race.done[r.id] }));
+  const finished = rows.filter(x => x.fin).sort((a, b) => a.T - b.T);
+  const best = finished.length ? finished[0].r.id : null;
+  const order = [...finished, ...rows.filter(x => !x.fin)];
+  $('board').innerHTML = order.map((x, i) => `<tr class="${x.r.id === best ? 'win' : ''}"><td><span class="rank">${x.fin ? (isFinite(x.T) ? (i + 1) + '위' : '–') : ''}</span><span class="sw" style="background: var(--${x.r.col})"></span>${x.r.name}</td><td class="num">${x.len.toFixed(2)} m</td><td class="num">${x.fin ? fmtT(x.T) : '—'}</td></tr>`).join('');
+}
+function raceTick(now) {
+  if (!race.running) return;
+  race.t = (now - race.t0) / 1000 * parseFloat($('speed').value);
+  let all = true;
+  RACE.filter(r => r.on).forEach(r => {
+    const T = race.tls[r.id].T;
+    const reach = isFinite(T) ? T : race.tls[r.id].cum[race.tls[r.id].cum.length - 1] + 0.3;
+    if (race.t >= reach) { if (!race.done[r.id]) { race.done[r.id] = true; renderBoard(); } } else all = false;
+  });
+  drawRace();
+  if (all) { race.running = false; $('go').textContent = '다시 출발'; if (window.rankRaceDone) rankRaceDone(); } else requestAnimationFrame(raceTick);
+}
+$('go').addEventListener('click', () => { if (window.rankInvalidate) rankInvalidate(); race.done = {}; race.t = 0; renderBoard(); race.running = true; race.t0 = performance.now(); requestAnimationFrame(raceTick); });
+$('chips').innerHTML = RACE.map(r => `<label class="chip" style="--dot: var(--${r.col})" for="ch-${r.id}"><input type="checkbox" id="ch-${r.id}" ${r.on ? 'checked' : ''}><span class="dot"></span>${r.name}</label>`).join('');
+RACE.forEach(r => $('ch-' + r.id).addEventListener('change', e => { r.on = e.target.checked; resetRace(); }));
+
+let drag = -1;
+const cvR = $('raceCv');
+function evPt(e) { const b = cvR.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; }
+cvR.addEventListener('pointerdown', e => {
+  if (!RACE.find(r => r.id === 'mine').on || !raceView) return;
+  const [px, py] = evPt(e);
+  mineCtrl().slice(1, -1).forEach((q, i) => { if (Math.hypot(raceView.X(q[0]) - px, raceView.Y(q[1]) - py) < 22) drag = i; });
+  if (drag >= 0) { cvR.setPointerCapture(e.pointerId); e.preventDefault(); }
+});
+cvR.addEventListener('pointermove', e => {
+  const [px, py] = evPt(e);
+  if (drag < 0) {
+    const near = raceView && RACE.find(r => r.id === 'mine').on && mineCtrl().slice(1, -1).some(q => Math.hypot(raceView.X(q[0]) - px, raceView.Y(q[1]) - py) < 22);
+    cvR.style.cursor = near ? 'grab' : 'default'; return;
+  }
+  const [, , , ymax] = sceneBounds();
+  let [x, y] = raceView.inv(px, py);
+  x = Math.min(st.X * 1.1, Math.max(st.X * 0.03, x)); y = Math.min(ymax * 0.97, Math.max(st.Y * 0.03, y));
+  mine[drag] = [x / st.X, y / st.Y];
+  race.running = false; race.t = 0; race.done = {}; buildRace(); drawRace(); renderBoard(); $('go').textContent = '출발!'; if (window.rankInvalidate) rankInvalidate();
+});
+['pointerup', 'pointercancel'].forEach(t => cvR.addEventListener(t, () => drag = -1));
+
+/* ---------- optimization ---------- */
+const opt = { N: 30, ys: [], it: 0, hist: [], ghosts: [], grad: [], m: [], v: [], running: false, conv: false };
+function optPts(ys) { const N = ys.length + 1; return [[0, 0], ...ys.map((y, i) => [st.X * (i + 1) / N, y]), [st.X, st.Y]]; }
+function optReset() {
+  opt.N = parseInt($('nseg').value); const N = opt.N, kind = $('init').value;
+  opt.ys = []; for (let i = 1; i < N; i++) {
+    const u = i / N; let y = st.Y * u;
+    if (kind === 'wave') y = st.Y * u + 0.3 * st.Y * Math.sin(3 * Math.PI * u);
+    if (kind === 'slow') y = st.Y * u * u;
+    opt.ys.push(Math.max(y, 1e-3 * st.Y));
+  }
+  opt.it = 0; opt.ghosts = []; opt.m = opt.ys.map(() => 0); opt.v = opt.ys.map(() => 0);
+  opt.running = false; opt.conv = false; $('run').textContent = '시작';
+  computeGrad(); opt.hist = [pathTime(optPts(opt.ys))]; drawOpt(); updateStats();
+}
+function computeGrad() {
+  const h = 1e-6 * st.Y;
+  opt.grad = opt.ys.map((y, i) => {
+    opt.ys[i] = y + h; const tp = pathTime(optPts(opt.ys));
+    opt.ys[i] = y - h; const tm = pathTime(optPts(opt.ys));
+    opt.ys[i] = y; return (tp - tm) / (2 * h);
+  });
+}
+function optStep() {
+  if (opt.conv) return;
+  computeGrad(); opt.it++;
+  const a = 0.012 * st.Y / (1 + opt.it / 250), b1 = 0.9, b2 = 0.999;
+  opt.ys = opt.ys.map((y, i) => {
+    const g = opt.grad[i]; if (!isFinite(g)) return y;
+    opt.m[i] = b1 * opt.m[i] + (1 - b1) * g; opt.v[i] = b2 * opt.v[i] + (1 - b2) * g * g;
+    const mh = opt.m[i] / (1 - b1 ** opt.it), vh = opt.v[i] / (1 - b2 ** opt.it);
+    return Math.max(1e-3 * st.Y, y - a * mh / (Math.sqrt(vh) + 1e-12));
+  });
+  const T = pathTime(optPts(opt.ys)); opt.hist.push(T);
+  if (opt.it % 12 === 0) { opt.ghosts.push(optPts(opt.ys)); if (opt.ghosts.length > 10) opt.ghosts.shift(); }
+  const k = opt.hist.length;
+  if ((k > 80 && Math.abs(opt.hist[k - 60] - T) / T < 2e-6) || opt.it >= 4000) { opt.conv = true; opt.running = false; $('run').textContent = '시작'; }
+}
+function drawOpt() {
+  const cv = $('optCv'); const { ctx, w, h } = fitCanvas(cv, 0.52, 260, 500);
+  const [a, b, c, d] = sceneBounds(); const v = makeView(w, h, a, b, c, d);
+  drawGrid(ctx, v);
+  if ($('showCyc').checked) strokePath(ctx, v, cycPts(st.X, st.Y), css['c-cyc'], 3, [8, 7]);
+  opt.ghosts.forEach((g, i) => strokePath(ctx, v, g, css['c-opt'], 1.5, null, 0.08 + 0.025 * i));
+  const p = optPts(opt.ys); strokePath(ctx, v, p, css['c-opt'], 3.5);
+  const gmax = Math.max(1e-12, ...opt.grad.filter(isFinite).map(Math.abs));
+  if (!opt.conv) opt.ys.forEach((y, i) => {
+    const g = opt.grad[i]; if (!isFinite(g)) return;
+    const len = -g / gmax * 30; if (Math.abs(len) < 3) return;
+    const x0 = v.X(p[i + 1][0]), y0 = v.Y(y), y1 = y0 + len;
+    ctx.strokeStyle = css['c-arrow']; ctx.fillStyle = css['c-arrow']; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); ctx.stroke();
+    const s = Math.sign(len); ctx.beginPath(); ctx.moveTo(x0, y1 + s * 6); ctx.lineTo(x0 - 4.5, y1 - s * 2); ctx.lineTo(x0 + 4.5, y1 - s * 2); ctx.closePath(); ctx.fill();
+  });
+  p.slice(1, -1).forEach(q => { ctx.beginPath(); ctx.arc(v.X(q[0]), v.Y(q[1]), 3.5, 0, 7); ctx.fillStyle = css['c-opt']; ctx.fill(); });
+  drawEnds(ctx, v);
+  drawChart();
+}
+function drawChart() {
+  const cv = $('chartCv'); const { ctx, w, h } = fitCanvas(cv, 0.24, 150, 190);
+  ctx.fillStyle = css.surface; ctx.fillRect(0, 0, w, h);
+  const Tc = cycFit(st.X, st.Y).T, H = opt.hist.filter(isFinite);
+  const l = 58, r = 14, t = 14, bpad = 30;
+  const xmax = Math.max(100, opt.it), ymin = Tc * 0.99, ymax = Math.max(Tc * 1.05, ...H) * 1.01;
+  const X = i => l + (w - l - r) * i / xmax, Y = T => t + (h - t - bpad) * (1 - (T - ymin) / (ymax - ymin));
+  ctx.strokeStyle = css.line; ctx.lineWidth = 1; ctx.font = '11px "IBM Plex Mono", monospace'; ctx.fillStyle = css.muted;
+  for (let k = 0; k <= 3; k++) { const T = ymin + (ymax - ymin) * k / 3; ctx.beginPath(); ctx.moveTo(l, Y(T)); ctx.lineTo(w - r, Y(T)); ctx.stroke(); ctx.textAlign = 'right'; ctx.fillText(T.toFixed(3) + 's', l - 6, Y(T) + 4); }
+  ctx.textAlign = 'center';
+  for (let k = 0; k <= 4; k++) { const i = Math.round(xmax * k / 4); ctx.fillText(i, X(i), h - 12); }
+  ctx.textAlign = 'right'; ctx.fillText('반복 횟수', w - r, h - 1);
+  ctx.save(); ctx.setLineDash([6, 5]); ctx.strokeStyle = css['c-cyc']; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(l, Y(Tc)); ctx.lineTo(w - r, Y(Tc)); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = css['c-cyc']; ctx.textAlign = 'left'; ctx.fillText('사이클로이드 ' + Tc.toFixed(3) + 's', l + 8, Y(Tc) - 6);
+  if (H.length) {
+    ctx.strokeStyle = css['c-opt']; ctx.lineWidth = 2.5; ctx.beginPath();
+    opt.hist.forEach((T, i) => { if (!isFinite(T)) return; i ? ctx.lineTo(X(i), Y(T)) : ctx.moveTo(X(i), Y(T)); }); ctx.stroke();
+    const lastT = opt.hist[opt.hist.length - 1];
+    if (isFinite(lastT)) { ctx.beginPath(); ctx.arc(X(opt.hist.length - 1), Y(lastT), 4.5, 0, 7); ctx.fillStyle = css['c-opt']; ctx.fill(); }
+  }
+}
+function updateStats() {
+  const T = opt.hist[opt.hist.length - 1], Tc = cycFit(st.X, st.Y).T;
+  $('sIt').textContent = opt.it; $('sT').textContent = fmtT(T); $('sC').textContent = fmtT(Tc);
+  $('sG').textContent = isFinite(T) ? '+' + ((T / Tc - 1) * 100).toFixed(2) + '%' : '–';
+  const s = $('status');
+  if (opt.conv) { s.textContent = '수렴 완료'; s.style.color = 'var(--c-arc)'; }
+  else if (opt.running) { s.textContent = '곡선 고치는 중'; s.style.color = 'var(--accent)'; }
+  else { s.textContent = opt.it ? '일시 정지' : '대기 중'; s.style.color = 'var(--muted)'; }
+}
+function optLoop() {
+  if (!opt.running) { updateStats(); return; }
+  for (let k = 0; k < 3 && !opt.conv; k++) optStep();
+  drawOpt(); updateStats();
+  requestAnimationFrame(optLoop);
+}
+$('run').addEventListener('click', () => {
+  if (opt.conv) optReset();
+  opt.running = !opt.running; $('run').textContent = opt.running ? '일시 정지' : '계속';
+  if (opt.running) requestAnimationFrame(optLoop); else updateStats();
+});
+$('step').addEventListener('click', () => { opt.running = false; $('run').textContent = opt.it ? '계속' : '시작'; optStep(); computeGrad(); drawOpt(); updateStats(); });
+$('reset').addEventListener('click', optReset);
+['init', 'nseg'].forEach(id => $(id).addEventListener('change', optReset));
+$('showCyc').addEventListener('change', drawOpt);
+
+/* ---------- make a cycloid ---------- */
+const MK_XW = 4.2, MK_XS = 0.12, TAU = 2 * Math.PI;
+const mk = { th: 1.3 * Math.PI, playing: false, last: 0, drag: false, grab: 0, view: null };
+const mkR = () => parseFloat($('mkR').value);
+const mkK = () => parseFloat($('mkK').value);
+const mkMax = () => (MK_XW - mkR() - MK_XS) / mkR();
+function mkP(th) { const r = mkR(), d = mkK() * r; return [MK_XS + r * th - d * Math.sin(th), -r + d * Math.cos(th)]; }
+function drawMake() {
+  const cv = $('makeCv'); const { ctx, w, h } = fitCanvas(cv, 0.34, 240, 460);
+  const v = makeView(w, h, -0.1, MK_XW + 0.1, -0.95, 0.3); mk.view = v;
+  drawGrid(ctx, v);
+  const r = mkR(), th = Math.min(mk.th, mkMax()), Y0 = v.Y(0), R = r * v.s;
+  const xc = MK_XS + r * th, cx = v.X(xc), cy = v.Y(-r);
+  // ground
+  ctx.save(); ctx.strokeStyle = css.muted; ctx.globalAlpha = 0.45; ctx.lineWidth = 1.2;
+  for (let x = 6; x < w + 10; x += 14) { ctx.beginPath(); ctx.moveTo(x, Y0 + 2); ctx.lineTo(x - 8, Y0 + 12); ctx.stroke(); }
+  ctx.restore();
+  ctx.strokeStyle = css.ink; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, Y0); ctx.lineTo(w, Y0); ctx.stroke();
+  // path of the centre
+  strokePath(ctx, v, [[MK_XS, -r], [MK_XS + r * mkMax(), -r]], css.muted, 1.5, [6, 6], 0.8);
+  // ghost wheels
+  if ($('mkGhost').checked) for (let g = Math.PI / 2; g < th - 1e-6; g += Math.PI / 2) {
+    ctx.save(); ctx.globalAlpha = 0.22; ctx.strokeStyle = css['c-line']; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(v.X(MK_XS + r * g), cy, R, 0, 7); ctx.stroke(); ctx.restore();
+    const q = mkP(g); ctx.save(); ctx.globalAlpha = 0.6; ctx.fillStyle = css['c-cyc'];
+    ctx.beginPath(); ctx.arc(v.X(q[0]), v.Y(q[1]), 4.5, 0, 7); ctx.fill(); ctx.restore();
+  }
+  // rolled distance on the ground: earlier turns faint, this turn solid
+  const laps = Math.floor(th / TAU + 1e-9), lap = th - laps * TAU, xl = MK_XS + r * laps * TAU;
+  ctx.save(); ctx.lineCap = 'butt'; ctx.strokeStyle = css['c-arc']; ctx.lineWidth = 6;
+  ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.moveTo(v.X(MK_XS), Y0); ctx.lineTo(v.X(xl), Y0); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.beginPath(); ctx.moveTo(v.X(xl), Y0); ctx.lineTo(cx, Y0); ctx.stroke(); ctx.restore();
+  ctx.font = '12px "IBM Plex Sans KR", sans-serif'; ctx.textAlign = 'center';
+  for (let n = 0; n <= laps; n++) {
+    const xt = v.X(MK_XS + r * TAU * n);
+    ctx.strokeStyle = css.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(xt, Y0 - 7); ctx.lineTo(xt, Y0 + 7); ctx.stroke();
+    ctx.fillStyle = css.muted; ctx.fillText(n === 0 ? '출발' : n + '바퀴', xt, Y0 + 28);
+  }
+  // the trace of P
+  const n = Math.max(2, Math.ceil(th / 0.02)), pts = [];
+  for (let i = 0; i <= n; i++) pts.push(mkP(th * i / n));
+  strokePath(ctx, v, pts, css['c-cyc'], 4);
+  // wheel
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7);
+  ctx.save(); ctx.globalAlpha = 0.08; ctx.fillStyle = css['c-line']; ctx.fill(); ctx.restore();
+  ctx.strokeStyle = css['c-line']; ctx.lineWidth = 3; ctx.stroke();
+  ctx.save(); ctx.globalAlpha = 0.3; ctx.strokeStyle = css['c-line']; ctx.lineWidth = 1.2;
+  for (let j = 1; j < 4; j++) { const a = Math.PI / 2 + th + j * Math.PI / 2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + R * Math.cos(a), cy + R * Math.sin(a)); ctx.stroke(); }
+  ctx.restore();
+  // rim that has touched the ground during this turn
+  if (lap > 1e-6) { ctx.save(); ctx.strokeStyle = css['c-arc']; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI / 2, Math.PI / 2 + lap); ctx.stroke(); ctx.restore(); }
+  // radius to P
+  const P = mkP(th), px = v.X(P[0]), py = v.Y(P[1]);
+  ctx.strokeStyle = css['c-line']; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke();
+  ctx.fillStyle = css.ink; ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, Y0, 3.5, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(px, py, 9, 0, 7); ctx.fillStyle = css['c-cyc']; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = css.surface; ctx.stroke();
+  ctx.fillStyle = css['c-cyc']; ctx.font = '700 17px Georgia, serif'; ctx.textAlign = 'left';
+  ctx.fillText('P', px + 12, py - 10);
+}
+function mkStats() {
+  const r = mkR(), k = mkK(), d = k * r, th = Math.min(mk.th, mkMax());
+  const s = Math.sin(th), c = Math.cos(th), x = r * th - d * s, y = r - d * c;
+  const f = z => z < -5e-4 ? '(−' + Math.abs(z).toFixed(3) + ')' : Math.abs(z).toFixed(3);
+  $('mkTh').textContent = (th / Math.PI).toFixed(2) + 'π (' + Math.round(th * 180 / Math.PI) + '°)';
+  $('mkDist').textContent = (r * th).toFixed(2) + ' m';
+  $('mkTurns').textContent = (th / TAU).toFixed(2) + '바퀴';
+  $('mkArches').textContent = Math.floor(th / TAU + 1e-9) + '개';
+  const R2 = r.toFixed(2), D2 = d.toFixed(2);
+  $('mkFormula').innerHTML = k === 1
+    ? `x = r(θ − sin θ)<br>&nbsp;&nbsp;= ${R2} × (${th.toFixed(3)} − ${f(s)}) = <b>${x.toFixed(3)} m</b><br>y = r(1 − cos θ)<br>&nbsp;&nbsp;= ${R2} × (1 − ${f(c)}) = <b>${y.toFixed(3)} m</b>`
+    : `x = rθ − d·sin θ &nbsp;(d = ${D2} m)<br>&nbsp;&nbsp;= ${R2} × ${th.toFixed(3)} − ${D2} × ${f(s)} = <b>${x.toFixed(3)} m</b><br>y = r − d·cos θ<br>&nbsp;&nbsp;= ${R2} − ${D2} × ${f(c)} = <b>${y.toFixed(3)} m</b>`;
+  $('mkKind').textContent = k === 1
+    ? '점 P가 바퀴 테두리 위에 있을 때 생기는 곡선이 사이클로이드예요. P가 땅에 닿는 순간 P는 잠깐 멈춰 있어요.'
+    : k < 1 ? '점이 바퀴 안쪽에 있으면 땅에 닿지 않는 물결 모양이 돼요(단축 사이클로이드). 자전거 바퀴살 위의 반사판이 이렇게 움직여요.'
+            : '점이 바퀴 바깥에 있으면 땅 아래에서 고리를 그려요(장축 사이클로이드). 기차 바퀴의 테두리 끝이 이렇게 움직여요.';
+  $('mkW').textContent = (TAU * r).toFixed(2) + ' m';
+  $('mkH').textContent = (r + d).toFixed(2) + ' m';
+  $('mkHk').textContent = k === 1 ? '가장 높은 곳 (= 지름 2r)' : '가장 높은 곳 (= r + d)';
+}
+function mkRender() { drawMake(); mkStats(); }
+function mkLabel() { $('roll').textContent = mk.playing ? '멈추기' : (mk.th >= mkMax() - 1e-6 ? '다시 굴리기' : '굴리기'); }
+function mkStop() { mk.playing = false; mkLabel(); }
+function mkLoop(now) {
+  if (!mk.playing) return;
+  const dt = Math.min(0.05, (now - mk.last) / 1000); mk.last = now;
+  mk.th += parseFloat($('mkSpeed').value) * dt;
+  if (mk.th >= mkMax()) { mk.th = mkMax(); mkStop(); }
+  mkRender();
+  if (mk.playing) requestAnimationFrame(mkLoop);
+}
+function mkPlay() { if (mk.th >= mkMax() - 1e-6) mk.th = 0; mk.playing = true; mk.last = performance.now(); mkLabel(); requestAnimationFrame(mkLoop); }
+$('roll').addEventListener('click', () => mk.playing ? mkStop() : mkPlay());
+$('mkStep').addEventListener('click', () => { mk.playing = false; if (mk.th >= mkMax() - 1e-6) mk.th = 0; mk.th = Math.min(mkMax(), mk.th + Math.PI / 6); mkLabel(); mkRender(); });
+$('mkReset').addEventListener('click', () => { mk.playing = false; mk.th = 0; mkLabel(); mkRender(); });
+$('mkR').addEventListener('input', () => { $('mkRo').textContent = Math.round(mkR() * 100) + ' cm'; mk.th = Math.min(mk.th, mkMax()); mkLabel(); mkRender(); });
+['mkK', 'mkGhost'].forEach(id => $(id).addEventListener('change', mkRender));
+const cvM = $('makeCv');
+function mkPt(e) { const b = cvM.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; }
+function mkOnWheel(px, py) {
+  const v = mk.view; if (!v) return false; const r = mkR();
+  return Math.hypot(px - v.X(MK_XS + r * Math.min(mk.th, mkMax())), py - v.Y(-r)) < r * v.s + 14;
+}
+cvM.addEventListener('pointerdown', e => {
+  const [px, py] = mkPt(e); if (!mkOnWheel(px, py)) return;
+  mk.playing = false; mk.drag = true; mk.grab = mk.view.inv(px, py)[0] - (MK_XS + mkR() * mk.th);
+  cvM.setPointerCapture(e.pointerId); cvM.style.cursor = 'grabbing'; mkLabel(); e.preventDefault();
+});
+cvM.addEventListener('pointermove', e => {
+  const [px, py] = mkPt(e);
+  if (!mk.drag) { cvM.style.cursor = mkOnWheel(px, py) ? 'grab' : 'default'; return; }
+  const wx = mk.view.inv(px, py)[0] - mk.grab;
+  mk.th = Math.max(0, Math.min(mkMax(), (wx - MK_XS) / mkR())); mkRender();
+});
+['pointerup', 'pointercancel'].forEach(t => cvM.addEventListener(t, () => { if (mk.drag) { mk.drag = false; cvM.style.cursor = 'grab'; mkLabel(); } }));
+
+/* ---------- tautochrone ---------- */
+const ISO_R = 0.25, ISO_RC = 4 * ISO_R, ISO_HMAX = 2 * ISO_R;
+const ISO_COL = ['c-line', 'c-arc', 'c-para'];
+const iso = { running: false, t0: 0, t: 0, tls: [], done: [] };
+function bowlPts(kind, n = 240) { // [x, -height]
+  const p = [];
+  if (kind === 'cyc') for (let i = 0; i <= n; i++) { const t = -Math.PI + 2 * Math.PI * i / n; p.push([ISO_R * (t + Math.sin(t)), -ISO_R * (1 - Math.cos(t))]); }
+  else { const a = Math.acos(1 - ISO_HMAX / ISO_RC); for (let i = 0; i <= n; i++) { const t = -a + 2 * a * i / n; p.push([ISO_RC * Math.sin(t), -ISO_RC * (1 - Math.cos(t))]); } }
+  return p;
+}
+function isoBuild() {
+  const kind = $('bowl').value;
+  iso.tls = [1, 2, 3].map(k => {
+    const f = parseInt($('h' + k).value) / 100, h0 = f * ISO_HMAX, n = 400, p = [];
+    if (kind === 'cyc') { const t0 = -Math.acos(1 - h0 / ISO_R); for (let i = 0; i <= n; i++) { const t = t0 * (1 - i / n); p.push([ISO_R * (t + Math.sin(t)), h0 - ISO_R * (1 - Math.cos(t))]); } }
+    else { const a0 = -Math.acos(1 - h0 / ISO_RC); for (let i = 0; i <= n; i++) { const t = a0 * (1 - i / n); p.push([ISO_RC * Math.sin(t), h0 - ISO_RC * (1 - Math.cos(t))]); } }
+    const tl = timeline(p); tl.h0 = h0; tl.f = f; return tl;
+  });
+}
+function isoReset() { iso.running = false; iso.t = 0; iso.done = [false, false, false]; isoBuild(); $('drop').textContent = '놓기!'; drawIso(); isoBoard(); }
+function drawIso() {
+  const cv = $('isoCv'); const { ctx, w, h } = fitCanvas(cv, 0.56, 280, 520);
+  const v = makeView(w, h, -1.0, 1.0, -ISO_HMAX * 1.35, ISO_HMAX * 0.18);
+  drawGrid(ctx, v);
+  const kind = $('bowl').value;
+  strokePath(ctx, v, bowlPts(kind === 'cyc' ? 'circ' : 'cyc'), css.muted, 1.5, [5, 6], 0.5);
+  strokePath(ctx, v, bowlPts(kind), css['c-cyc'], 5);
+  ctx.fillStyle = css.muted; ctx.font = '13px "IBM Plex Sans KR", sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(kind === 'cyc' ? '사이클로이드 그릇 (점선: 원형 그릇)' : '원형 그릇 (점선: 사이클로이드 그릇)', v.X(0), v.Y(-ISO_HMAX * 1.22));
+  ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = css.ink; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(v.X(0), v.Y(0) - 10, 17, 0, 7); ctx.stroke(); ctx.restore();
+  iso.tls.forEach((tl, k) => {
+    const q = posAt(tl, iso.t); ball(ctx, v, [q[0], -(tl.h0 - q[1])], css[ISO_COL[k]], 10);
+    if (!iso.running && iso.t === 0) { ctx.fillStyle = css[ISO_COL[k]]; ctx.font = '600 13px "IBM Plex Sans KR", sans-serif'; ctx.textAlign = 'right'; ctx.fillText('구슬 ' + (k + 1), v.X(q[0]) - 16, v.Y(-tl.h0) - 8); }
+  });
+}
+function isoBoard() {
+  $('isoBoard').innerHTML = iso.tls.map((tl, k) => `<tr><td><span class="sw" style="background: var(--${ISO_COL[k]})"></span>구슬 ${k + 1}</td><td class="num">${(tl.h0 * 100).toFixed(1)} cm</td><td class="num">${iso.done[k] ? fmtT(tl.T) : '—'}</td></tr>`).join('');
+  const Ts = iso.tls.map(t => t.T);
+  $('isoGap').textContent = iso.done.every(Boolean) ? ((Math.max(...Ts) - Math.min(...Ts)) * 1000).toFixed(1) + ' ms (1/1000초)' : '–';
+}
+function isoTick(now) {
+  if (!iso.running) return;
+  iso.t = (now - iso.t0) / 1000 * parseFloat($('isoSpeed').value);
+  iso.tls.forEach((tl, k) => { if (!iso.done[k] && iso.t >= tl.T) { iso.done[k] = true; isoBoard(); } });
+  drawIso();
+  if (iso.done.every(Boolean)) { iso.running = false; $('drop').textContent = '다시 놓기'; } else requestAnimationFrame(isoTick);
+}
+$('drop').addEventListener('click', () => { iso.t = 0; iso.done = [false, false, false]; isoBoard(); iso.running = true; iso.t0 = performance.now(); requestAnimationFrame(isoTick); });
+$('bowl').addEventListener('change', isoReset);
+[1, 2, 3].forEach(k => $('h' + k).addEventListener('input', () => { $('oh' + k).textContent = $('h' + k).value + '%'; isoReset(); }));
+
+/* ---------- ranking + challenge ---------- */
+const COURSE = { X: 1.57, Y: 1.0 }, LOCAL_KEY = 'bcl-ranking-v1';
+const rk = { mode: 'local', db: null, canWrite: true, admin: false, rows: [], myId: null, run: null, clearArm: 0 };
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const cycT = () => cycFit(COURSE.X, COURSE.Y).T;
+function validRow(r) { return r && typeof r.nick === 'string' && r.nick.length > 0 && r.nick.length <= 12 && typeof r.time === 'number' && isFinite(r.time) && r.time > 0.5 && r.time < 30; }
+function sortRows(rows) { return rows.filter(validRow).sort((a, b) => a.time - b.time || String(a.at).localeCompare(String(b.at))); }
+function loadLocal() { try { return sortRows(JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]')); } catch (e) { return []; } }
+function saveLocal(rows) { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(rows)); return true; } catch (e) { return false; } }
+function nickOk() { const n = $('nick').value.trim(); return n.length >= 1 && n.length <= 10; }
+function previewRank(T) { return rk.rows.filter(r => r.time < T).length + 1; }
+
+/* the challenge stage: one curve, three handles, no other rails */
+const CH = { ctrl: null, tl: null, running: false, t: 0, t0: 0, finished: false, view: null, drag: -1 };
+const chDefault = () => [0.25, 0.5, 0.75].map(f => [f, f]);
+CH.ctrl = chDefault();
+const chCtrlW = () => [[0, 0], ...CH.ctrl.map(([fx, fy]) => [fx * COURSE.X, fy * COURSE.Y]), [COURSE.X, COURSE.Y]];
+const CH_B = [-0.08 * COURSE.X, 1.12 * COURSE.X, -0.12 * COURSE.Y, 1.45 * COURSE.Y];
+function chBuild() { CH.tl = timeline(spline(chCtrlW(), 50)); }
+function chEnd() { const T = CH.tl.T; return isFinite(T) ? T : CH.tl.cum[CH.tl.cum.length - 1] + 0.4; }
+function drawCh() {
+  const cv = $('chCv'); const { ctx, w, h } = fitCanvas(cv, 0.62, 250, 520);
+  const v = makeView(w, h, ...CH_B); CH.view = v;
+  drawGrid(ctx, v);
+  strokePath(ctx, v, CH.tl.p, css['c-mine'], 5);
+  chCtrlW().slice(1, -1).forEach(q => {
+    ctx.beginPath(); ctx.arc(v.X(q[0]), v.Y(q[1]), 11, 0, 7); ctx.fillStyle = css.surface; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = css['c-mine']; ctx.stroke();
+  });
+  ctx.fillStyle = css.ink; ctx.font = '600 14px "IBM Plex Sans KR", sans-serif';
+  [[0, 0, 'A 출발', -58, 5], [COURSE.X, COURSE.Y, 'B 도착', -40, 30]].forEach(([x, y, t, dx, dy]) => {
+    ctx.beginPath(); ctx.arc(v.X(x), v.Y(y), 5, 0, 7); ctx.fill(); ctx.textAlign = 'left'; ctx.fillText(t, v.X(x) + dx, v.Y(y) + dy);
+  });
+  ball(ctx, v, posAt(CH.tl, Math.min(CH.t, chEnd())), css['c-mine'], 10);
+  const shown = isFinite(CH.tl.T) ? Math.min(CH.t, CH.tl.T) : CH.t;
+  ctx.textAlign = 'right'; ctx.fillStyle = css.ink; ctx.font = '600 26px "IBM Plex Mono", monospace';
+  ctx.fillText(shown.toFixed(3) + '초', w - 14, 34);
+  ctx.font = '12px "IBM Plex Sans KR", sans-serif'; ctx.fillStyle = css.muted;
+  ctx.fillText(CH.running ? '경주 중' : CH.finished ? (isFinite(CH.tl.T) ? '도착!' : '도착 못 함') : '스톱워치', w - 14, 52);
+}
+function chChanged() { CH.running = false; CH.finished = false; CH.t = 0; rk.run = null; chBuild(); $('chGo').textContent = '출발!'; drawCh(); renderResult(); updateReg(); }
+function chTick(now) {
+  if (!CH.running) return;
+  CH.t = (now - CH.t0) / 1000 * parseFloat($('chSpeed').value);
+  if (CH.t >= chEnd()) {
+    CH.t = chEnd(); CH.running = false; CH.finished = true; $('chGo').textContent = '다시 출발';
+    rk.run = { T: CH.tl.T, ctrl: CH.ctrl.map(p => p.map(x => +x.toFixed(4))) };
+    if (isFinite(CH.tl.T)) $('regMsg').textContent = '';
+    renderResult(); updateReg();
+  }
+  drawCh();
+  if (CH.running) requestAnimationFrame(chTick);
+}
+$('chGo').addEventListener('click', () => { CH.t = 0; CH.finished = false; rk.run = null; renderResult(); updateReg(); CH.running = true; CH.t0 = performance.now(); requestAnimationFrame(chTick); });
+$('chReset').addEventListener('click', () => { CH.ctrl = chDefault(); chChanged(); });
+const cvC = $('chCv');
+function chPt(e) { const b = cvC.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; }
+function chHit(px, py) { let k = -1; if (CH.view) chCtrlW().slice(1, -1).forEach((q, i) => { if (Math.hypot(CH.view.X(q[0]) - px, CH.view.Y(q[1]) - py) < 24) k = i; }); return k; }
+cvC.addEventListener('pointerdown', e => { const [px, py] = chPt(e); CH.drag = chHit(px, py); if (CH.drag >= 0) { cvC.setPointerCapture(e.pointerId); e.preventDefault(); } });
+cvC.addEventListener('pointermove', e => {
+  const [px, py] = chPt(e);
+  if (CH.drag < 0) { cvC.style.cursor = chHit(px, py) >= 0 ? 'grab' : 'default'; return; }
+  let [x, y] = CH.view.inv(px, py);
+  x = Math.min(COURSE.X * 1.1, Math.max(COURSE.X * 0.03, x)); y = Math.min(COURSE.Y * 1.4, Math.max(COURSE.Y * 0.03, y));
+  CH.ctrl[CH.drag] = [x / COURSE.X, y / COURSE.Y]; chChanged();
+});
+['pointerup', 'pointercancel'].forEach(t => cvC.addEventListener(t, () => CH.drag = -1));
+
+function renderResult() {
+  const box = $('myResult'); box.classList.remove('ready');
+  if (!rk.run) { box.innerHTML = CH.running ? '구슬이 내려가는 중이에요…' : '곡선을 만들고 <b>출발!</b>을 눌러 기록을 재 보세요.'; return; }
+  if (!isFinite(rk.run.T)) { box.innerHTML = '곡선이 출발점 A보다 높이 올라가서 구슬이 도착하지 못했어요. 손잡이를 아래로 내려 보세요.'; return; }
+  const gap = (rk.run.T / cycT() - 1) * 100;
+  box.classList.add('ready');
+  box.innerHTML = `내 곡선 기록<b class="big">${rk.run.T.toFixed(3)}초</b>가장 빠른 곡선보다 ${gap.toFixed(2)}% 느려요. 지금 등록하면 <b>${previewRank(rk.run.T)}위</b>예요!`;
+}
+function updateReg() {
+  $('submitRec').disabled = !(rk.run && isFinite(rk.run.T) && nickOk() && rk.canWrite);
+  if (rk.mode === 'shared' && !rk.canWrite && !rk.myId) $('regMsg').textContent = '이 화면에서는 랭킹을 볼 수만 있어요. 기록 등록은 부스 컴퓨터에서 해 주세요.';
+}
+function rowHtml(r, i) {
+  const gap = (r.time / cycT() - 1) * 100;
+  const medal = `<span class="medal${i < 3 ? ' m' + (i + 1) : ''}">${i + 1}</span>`;
+  const del = rk.admin || rk.mode === 'local' ? `<button class="mini del" data-del="${esc(r.id)}" aria-label="${esc(r.nick)}님의 기록 지우기">×</button>` : '';
+  return `<tr class="${r.id === rk.myId ? 'mine' : ''}"><td>${medal}</td><td class="nick">${esc(r.nick)}</td><td class="num">${r.time.toFixed(3)}초</td><td class="num">+${gap.toFixed(2)}%</td><td><div class="acts">${del}</div></td></tr>`;
+}
+function renderRank() {
+  const top = rk.rows.slice(0, 10), myIdx = rk.myId ? rk.rows.findIndex(r => r.id === rk.myId) : -1;
+  const extra = myIdx >= 10 ? `<tr><td colspan="5" class="note" style="text-align: center">⋯</td></tr>` + rowHtml(rk.rows[myIdx], myIdx) : '';
+  $('rankBody').innerHTML = `<tr class="wall"><td><span class="medal">★</span></td><td>사이클로이드 (넘을 수 없는 벽)</td><td class="num">${cycT().toFixed(3)}초</td><td class="num">0.00%</td><td></td></tr>`
+    + (top.length ? top.map(rowHtml).join('') + extra : `<tr><td colspan="5" class="note" style="text-align: center; padding: 18px 4px">아직 기록이 없어요. 첫 번째 도전자가 되어 보세요!</td></tr>`);
+  $('rankFoot').textContent = rk.rows.length ? `지금까지 ${rk.rows.length}개의 기록이 있어요.` : '';
+  const src = $('rankSrc');
+  if (rk.mode === 'shared') { src.textContent = rk.canWrite ? '부스 공용 랭킹' : '부스 공용 랭킹 · 보기 전용'; src.style.color = 'var(--c-arc)'; }
+  else { src.textContent = '이 기기 랭킹'; src.style.color = 'var(--muted)'; }
+  $('adminBar').hidden = !(rk.admin && rk.mode === 'shared' && rk.rows.length);
+  if (myIdx >= 0) $('regMsg').textContent = `등록 완료! ${rk.rows[myIdx].nick}님은 ${rk.rows.length}개 기록 중 ${myIdx + 1}위예요.`;
+  renderResult(); updateReg();
+}
+$('nick').addEventListener('input', updateReg);
+$('nick').addEventListener('keydown', e => { if (e.key === 'Enter' && !$('submitRec').disabled) submitRec(); });
+async function submitRec() {
+  if ($('submitRec').disabled) return;
+  const nick = $('nick').value.trim().replace(/\s+/g, ' ').slice(0, 10);
+  const rec = { nick, time: +rk.run.T.toFixed(5), ctrl: rk.run.ctrl, course: '1.57x1.00', at: new Date().toISOString() };
+  $('submitRec').disabled = true; $('regMsg').textContent = '등록하는 중…';
+  if (rk.mode === 'shared') {
+    try { const ref = rk.db.collection('ranking').doc(); await ref.set(rec); rk.myId = ref.id; }
+    catch (e) {
+      if (e && e.code === 'invalid_argument') { rk.canWrite = false; $('regMsg').textContent = '이 화면에서는 기록을 남길 수 없어요. 부스 컴퓨터에서 등록해 주세요.'; }
+      else if (e && e.code === 'quota_exceeded') $('regMsg').textContent = '랭킹판이 가득 찼어요. 선생님께 알려 주세요.';
+      else $('regMsg').textContent = '등록하지 못했어요. 잠시 뒤에 다시 눌러 주세요.';
+      updateReg(); return;
+    }
+  } else {
+    const id = 'L' + Date.now().toString(36);
+    const rows = sortRows([...loadLocal(), { id, ...rec }]);
+    if (!saveLocal(rows)) $('regMsg').textContent = '이 브라우저에서는 기록을 저장할 수 없어서, 페이지를 닫으면 사라져요.';
+    rk.rows = rows; rk.myId = id;
+  }
+  rk.run = null; $('nick').value = '';
+  CH.ctrl = chDefault(); chBuild(); CH.t = 0; CH.finished = false; $('chGo').textContent = '출발!'; drawCh();
+  renderRank();
+}
+$('submitRec').addEventListener('click', submitRec);
+$('rankBody').addEventListener('click', async e => {
+  const d = e.target.closest('[data-del]'); if (!d) return;
+  const id = d.dataset.del;
+  if (rk.mode === 'shared') { try { await rk.db.doc('ranking/' + id).delete(); } catch (err) { $('regMsg').textContent = '기록을 지우지 못했어요.'; } }
+  else { rk.rows = rk.rows.filter(x => x.id !== id); saveLocal(rk.rows); renderRank(); }
+});
+$('clearAll').addEventListener('click', async () => {
+  const b = $('clearAll');
+  if (Date.now() - rk.clearArm > 4000) { rk.clearArm = Date.now(); b.textContent = '정말 모두 지울까요? 한 번 더 누르세요'; setTimeout(() => { if (Date.now() - rk.clearArm >= 4000) b.textContent = '랭킹 모두 지우기'; }, 4100); return; }
+  rk.clearArm = 0; b.textContent = '지우는 중…'; b.disabled = true;
+  for (const r of rk.rows.slice()) { try { await rk.db.doc('ranking/' + r.id).delete(); } catch (err) { break; } }
+  b.textContent = '랭킹 모두 지우기'; b.disabled = false;
+});
+chBuild();
+(async function initRank() {
+  rk.rows = loadLocal(); renderRank();
+  let db = null;
+  try { db = window.claude && window.claude.use ? await window.claude.use('db') : null; } catch (e) { db = null; }
+  if (!db) return;
+  let user = null;
+  try { user = await window.claude.use('user'); } catch (e) { user = null; }
+  if (user) {
+    try { const c = await user.can('data.write'); rk.canWrite = c !== false; } catch (e) {}
+    try { rk.admin = !!(await user.canEdit()); } catch (e) {}
+  }
+  rk.db = db;
+  db.collection('ranking').orderBy('time').limit(500).onSnapshot(snap => {
+    rk.mode = 'shared'; rk.rows = sortRows(snap.docs.map(d => ({ id: d.id, ...d.data() }))); renderRank();
+  }, err => { rk.mode = 'local'; rk.db = null; rk.canWrite = true; rk.rows = loadLocal(); renderRank(); });
+})();
+
+/* ---------- shared ---------- */
+function onB() {
+  st.X = parseFloat($('sx').value); st.Y = parseFloat($('sy').value);
+  $('ox').textContent = st.X.toFixed(2) + ' m'; $('oy').textContent = st.Y.toFixed(2) + ' m';
+  resetRace(); optReset();
+}
+$('sx').addEventListener('input', onB); $('sy').addEventListener('input', onB);
+
+const tabs = [['t-make', 'p-make'], ['t-race', 'p-race'], ['t-opt', 'p-opt'], ['t-iso', 'p-iso']];
+function showTab(id) {
+  tabs.forEach(([t, p]) => { const on = t === id; $(t).setAttribute('aria-selected', on); $(p).hidden = !on; });
+  document.querySelector('.setup').hidden = id === 't-iso' || id === 't-make';
+  if (id !== 't-make' && mk.playing) mkStop();
+  if (id === 't-make') mkRender(); else if (id === 't-race') { drawRace(); drawCh(); } else if (id === 't-opt') drawOpt(); else drawIso();
+}
+tabs.forEach(([t]) => $(t).addEventListener('click', () => showTab(t)));
+
+function redraw() { readCss(); if (!$('p-make').hidden) drawMake(); if (!$('p-race').hidden) { drawRace(); drawCh(); } if (!$('p-opt').hidden) drawOpt(); if (!$('p-iso').hidden) drawIso(); }
+new ResizeObserver(redraw).observe(document.querySelector('.wrap'));
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw); } catch (e) {}
+new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+if (document.fonts) document.fonts.ready.then(redraw);
+
+readCss(); buildRace(); renderBoard(); optReset(); isoBuild(); isoBoard();
+showTab({ '#race': 't-race', '#optimize': 't-opt', '#isochrone': 't-iso' }[location.hash] || 't-make');
+})();
+</script>
+
+</body>
+</html>
