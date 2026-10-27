@@ -818,6 +818,17 @@ $('bowl').addEventListener('change', isoReset);
 /* ---------- ranking + challenge ---------- */
 const COURSE = { X: 1.57, Y: 1.0 }, LOCAL_KEY = 'bcl-ranking-v1';
 const rk = { mode: 'local', db: null, canWrite: true, admin: false, rows: [], myId: null, run: null, clearArm: 0 };
+/* Supabase online ranking: fill in the project URL and the anon (public) key to turn it on. */
+const SB = { url: 'https://bjejdtexuyvqgwcjjgfa.supabase.co', key: 'sb_publishable_2wdg4Ds1H4lICrLjFGEVLw_kz5Ek7-y' };
+function sbFetch(path, opts = {}) {
+  return fetch(SB.url.replace(/\/$/, '') + '/rest/v1/' + path, { ...opts, headers: { apikey: SB.key, ...(SB.key.startsWith('eyJ') ? { Authorization: 'Bearer ' + SB.key } : {}), 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+}
+const sbRow = r => ({ id: String(r.id), nick: r.nick, time: r.time, ctrl: r.ctrl, at: r.created_at });
+async function sbLoad() {
+  const res = await sbFetch('ranking?select=id,nick,time,ctrl,created_at&course=eq.1.57x1.00&order=time.asc&limit=500');
+  if (!res.ok) throw new Error('load ' + res.status);
+  rk.rows = sortRows((await res.json()).map(sbRow)); renderRank();
+}
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cycT = () => cycFit(COURSE.X, COURSE.Y).T;
 function validRow(r) { return r && typeof r.nick === 'string' && r.nick.length > 0 && r.nick.length <= 12 && typeof r.time === 'number' && isFinite(r.time) && r.time > 0.5 && r.time < 30; }
@@ -908,7 +919,8 @@ function renderRank() {
     + (top.length ? top.map(rowHtml).join('') + extra : `<tr><td colspan="5" class="note" style="text-align: center; padding: 18px 4px">아직 기록이 없어요. 첫 번째 도전자가 되어 보세요!</td></tr>`);
   $('rankFoot').textContent = rk.rows.length ? `지금까지 ${rk.rows.length}개의 기록이 있어요.` : '';
   const src = $('rankSrc');
-  if (rk.mode === 'shared') { src.textContent = rk.canWrite ? '부스 공용 랭킹' : '부스 공용 랭킹 · 보기 전용'; src.style.color = 'var(--c-arc)'; }
+  if (rk.mode === 'supa') { src.textContent = '온라인 공용 랭킹'; src.style.color = 'var(--c-arc)'; }
+  else if (rk.mode === 'shared') { src.textContent = rk.canWrite ? '부스 공용 랭킹' : '부스 공용 랭킹 · 보기 전용'; src.style.color = 'var(--c-arc)'; }
   else { src.textContent = '이 기기 랭킹'; src.style.color = 'var(--muted)'; }
   $('adminBar').hidden = !(rk.admin && rk.mode === 'shared' && rk.rows.length);
   if (myIdx >= 0) $('regMsg').textContent = `등록 완료! ${rk.rows[myIdx].nick}님은 ${rk.rows.length}개 기록 중 ${myIdx + 1}위예요.`;
@@ -921,7 +933,14 @@ async function submitRec() {
   const nick = $('nick').value.trim().replace(/\s+/g, ' ').slice(0, 10);
   const rec = { nick, time: +rk.run.T.toFixed(5), ctrl: rk.run.ctrl, course: '1.57x1.00', at: new Date().toISOString() };
   $('submitRec').disabled = true; $('regMsg').textContent = '등록하는 중…';
-  if (rk.mode === 'shared') {
+  if (rk.mode === 'supa') {
+    try {
+      const res = await sbFetch('ranking', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ nick: rec.nick, time: rec.time, ctrl: rec.ctrl, course: rec.course }) });
+      if (!res.ok) throw new Error('insert ' + res.status);
+      const made = await res.json(); rk.myId = made && made[0] ? String(made[0].id) : null;
+      await sbLoad();
+    } catch (e) { $('regMsg').textContent = '등록하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'; updateReg(); return; }
+  } else if (rk.mode === 'shared') {
     try { const ref = rk.db.collection('ranking').doc(); await ref.set(rec); rk.myId = ref.id; }
     catch (e) {
       if (e && e.code === 'invalid_argument') { rk.canWrite = false; $('regMsg').textContent = '이 화면에서는 기록을 남길 수 없어요. 부스 컴퓨터에서 등록해 주세요.'; }
@@ -956,6 +975,13 @@ $('clearAll').addEventListener('click', async () => {
 chBuild();
 (async function initRank() {
   rk.rows = loadLocal(); renderRank();
+  if (SB.url && SB.key) {
+    try {
+      rk.mode = 'supa'; rk.canWrite = true; rk.admin = false; await sbLoad();
+      setInterval(() => { if (document.visibilityState === 'visible') sbLoad().catch(() => {}); }, 8000);
+      return;
+    } catch (e) { rk.mode = 'local'; rk.rows = loadLocal(); renderRank(); }
+  }
   let db = null;
   try { db = window.claude && window.claude.use ? await window.claude.use('db') : null; } catch (e) { db = null; }
   if (!db) return;
