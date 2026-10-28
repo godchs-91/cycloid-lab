@@ -72,6 +72,12 @@ button.mini { font: 600 12.5px var(--f-body); padding: 4px 9px; border-radius: 7
 button.mini:hover { color: var(--ink); border-color: var(--muted) }
 button.mini.del { padding: 4px 8px }
 .tablewrap { overflow-x: auto }
+.tablewrap.all { max-height: 460px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px }
+.tablewrap.all thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); padding-top: 8px }
+.toggle-all { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px }
+.toggle-all .chev { display: inline-block; transition: transform .2s }
+.toggle-all[aria-expanded="true"] .chev { transform: rotate(180deg) }
+@media (prefers-reduced-motion: reduce) { .toggle-all .chev { transition: none } }
 .medal { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; font-family: var(--f-mono); font-size: 13px; font-weight: 700; color: var(--muted); border: 1.5px solid var(--line) }
 .medal.m1 { background: var(--c-mine); border-color: var(--c-mine); color: var(--surface) }
 .medal.m2 { background: var(--muted); border-color: var(--muted); color: var(--surface) }
@@ -243,13 +249,14 @@ ol.steps li { color: var(--muted) }
     <div class="box">
       <div class="rank-title"><h2>명예의 전당</h2><span class="status" id="rankSrc" style="color: var(--muted)">불러오는 중</span></div>
       <p class="note">아무도 이길 수 없는 사이클로이드의 기록에 가장 가까이 다가간 사람이 1등이에요.</p>
-      <div class="tablewrap">
+      <div class="tablewrap" id="rankWrap">
         <table aria-label="랭킹">
           <thead><tr><th>순위</th><th>닉네임</th><th class="num">기록</th><th class="num">차이</th><th></th></tr></thead>
           <tbody id="rankBody"></tbody>
         </table>
       </div>
       <p class="note" id="rankFoot"></p>
+      <button class="btn toggle-all" id="toggleAll" aria-expanded="false" aria-controls="rankWrap" hidden><span id="toggleTxt">전체 기록 펼치기</span><span class="chev" aria-hidden="true">▾</span></button>
       <div class="row" id="adminBar" hidden><button class="btn" id="clearAll">랭킹 모두 지우기</button><span class="note">관리자에게만 보이는 버튼이에요.</span></div>
     </div>
    </div>
@@ -817,7 +824,7 @@ $('bowl').addEventListener('change', isoReset);
 
 /* ---------- ranking + challenge ---------- */
 const COURSE = { X: 1.57, Y: 1.0 }, LOCAL_KEY = 'bcl-ranking-v1';
-const rk = { mode: 'local', db: null, canWrite: true, admin: false, rows: [], myId: null, run: null, clearArm: 0 };
+const rk = { mode: 'local', db: null, canWrite: true, admin: false, rows: [], myId: null, run: null, clearArm: 0, expanded: false };
 /* Supabase online ranking: fill in the project URL and the anon (public) key to turn it on. */
 const SB = { url: 'https://bjejdtexuyvqgwcjjgfa.supabase.co', key: 'sb_publishable_2wdg4Ds1H4lICrLjFGEVLw_kz5Ek7-y' };
 function sbFetch(path, opts = {}) {
@@ -913,11 +920,15 @@ function rowHtml(r, i) {
   return `<tr class="${r.id === rk.myId ? 'mine' : ''}"><td>${medal}</td><td class="nick">${esc(r.nick)}</td><td class="num">${r.time.toFixed(3)}초</td><td class="num">+${gap.toFixed(2)}%</td><td><div class="acts">${del}</div></td></tr>`;
 }
 function renderRank() {
-  const top = rk.rows.slice(0, 10), myIdx = rk.myId ? rk.rows.findIndex(r => r.id === rk.myId) : -1;
-  const extra = myIdx >= 10 ? `<tr><td colspan="5" class="note" style="text-align: center">⋯</td></tr>` + rowHtml(rk.rows[myIdx], myIdx) : '';
+  const top = rk.expanded ? rk.rows : rk.rows.slice(0, 10), myIdx = rk.myId ? rk.rows.findIndex(r => r.id === rk.myId) : -1;
+  const extra = !rk.expanded && myIdx >= 10 ? `<tr><td colspan="5" class="note" style="text-align: center">⋯</td></tr>` + rowHtml(rk.rows[myIdx], myIdx) : '';
   $('rankBody').innerHTML = `<tr class="wall"><td><span class="medal">★</span></td><td>사이클로이드 (넘을 수 없는 벽)</td><td class="num">${cycT().toFixed(3)}초</td><td class="num">0.00%</td><td></td></tr>`
     + (top.length ? top.map(rowHtml).join('') + extra : `<tr><td colspan="5" class="note" style="text-align: center; padding: 18px 4px">아직 기록이 없어요. 첫 번째 도전자가 되어 보세요!</td></tr>`);
-  $('rankFoot').textContent = rk.rows.length ? `지금까지 ${rk.rows.length}개의 기록이 있어요.` : '';
+  $('rankFoot').textContent = rk.rows.length ? (rk.expanded ? `전체 ${rk.rows.length}개 기록을 모두 보고 있어요.` : `지금까지 ${rk.rows.length}개의 기록이 있어요.`) : '';
+  const tg = $('toggleAll'); tg.hidden = rk.rows.length <= 10;
+  if (rk.rows.length <= 10) rk.expanded = false;
+  tg.setAttribute('aria-expanded', rk.expanded); $('rankWrap').classList.toggle('all', rk.expanded);
+  $('toggleTxt').textContent = rk.expanded ? '상위 10위만 보기' : `전체 기록 펼치기 (${rk.rows.length}개)`;
   const src = $('rankSrc');
   if (rk.mode === 'supa') { src.textContent = '온라인 공용 랭킹'; src.style.color = 'var(--c-arc)'; }
   else if (rk.mode === 'shared') { src.textContent = rk.canWrite ? '부스 공용 랭킹' : '부스 공용 랭킹 · 보기 전용'; src.style.color = 'var(--c-arc)'; }
@@ -959,6 +970,11 @@ async function submitRec() {
   renderRank();
 }
 $('submitRec').addEventListener('click', submitRec);
+$('toggleAll').addEventListener('click', () => {
+  rk.expanded = !rk.expanded; renderRank();
+  if (rk.expanded) { const i = rk.myId ? rk.rows.findIndex(r => r.id === rk.myId) : -1; const tr = i >= 0 ? $('rankBody').rows[i + 1] : null; if (tr) tr.scrollIntoView({ block: 'nearest' }); }
+  else $('rankWrap').scrollTop = 0;
+});
 $('rankBody').addEventListener('click', async e => {
   const d = e.target.closest('[data-del]'); if (!d) return;
   const id = d.dataset.del;
